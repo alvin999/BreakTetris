@@ -1,0 +1,14 @@
+# macOS
+.DS_Store
+
+# LÖVE build artifacts
+# Ignore .love files, which are the packaged game builds.
+*.love
+
+# Editor directories and files
+# Ignore VS Code specific settings and cache.
+.vscode/
+
+# Build output directories (optional, but good practice)
+/build/
+/dist/

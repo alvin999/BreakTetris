@@ -1,3 +1,10 @@
+<p align="center">
+  <img src="https://img.shields.io/badge/Love2D-11.5-blue.svg?logo=love" alt="Love2D Version">
+  <img src="https://img.shields.io/badge/License-MIT-green.svg" alt="License: MIT">
+  <img src="https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg" alt="Platform">
+  <img src="https://img.shields.io/github/stars/alvin999/BreakTetris?style=social" alt="GitHub stars">
+  <img src="https://img.shields.io/github/last-commit/alvin999/BreakTetris?color=yellow" alt="Last Commit">
+</p>
 # 🎮 Break Tetris — A Lua LÖVE Hybrid Game
 
 > 一款把「俄羅斯方塊」與「打磚塊」融合在一起的創意遊戲實驗。  

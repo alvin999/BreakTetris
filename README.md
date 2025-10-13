@@ -26,6 +26,18 @@
 
 ---
 
+## 🎮 下載遊戲 (Download Game)
+
+您可以直接從下方的連結下載最新發佈的遊戲版本，無需自己編譯程式碼。
+
+<p align="center">
+  <a href="https://github.com/alvin999/BreakTetris/releases">
+    <img src="https://img.shields.io/badge/Download-Latest%20Release-brightgreen?style=for-the-badge&logo=github" alt="Download Latest Release">
+  </a>
+</p>
+
+---
+
 ## 📦 發佈版執行
 
 如果你下載的是已打包的 Release 版本：
@@ -93,7 +105,7 @@ BreakTetris/
 
 ---
 
-## 🚀 執行方式
+## 🚀 原始碼執行方式
 
 ### 前置需求
 
@@ -157,9 +169,9 @@ TITLE → PLAYING → PAUSED → GAME_OVER
 > 如果磚塊疊太高,就將方塊變成磚牆,再以球與板子把它打碎。  
 > 這款遊戲是一次關於節奏、轉換與留白的嘗試。
 
-這份程式架構經過模組化重構,  
+這份程式架構經過模組化重構，
 從 **方塊生成** → **碰撞偵測** → **模式切換** → **音效回饋**  
-全程使用 Love2D 原生 API 實現,  
+全程使用 Love2D 原生 API 實現，
 不依賴外部框架、可直接改作其他混合類型實驗。
 
 ---
@@ -167,14 +179,14 @@ TITLE → PLAYING → PAUSED → GAME_OVER
 ## 📜 授權條款
 
 本專案採用 **MIT License**。  
-自由學習、修改與再創作,  
-但請保留原作者註記,讓更多人看到這份實驗的靈感。
+自由學習、修改與再創作，
+但請保留原作者註記，讓更多人看到這份實驗的靈感。
 
 ---
 
 ## 💬 聯絡與回饋
 
 如果你喜歡這個專案,  
-可以在 GitHub ⭐ 星標支持,或提交你的改良版本！
+可以在 GitHub ⭐ 星標支持，或提交你的改良版本！
 
-> 「遊戲設計,就像打磚塊：每一擊,都在重塑世界的樣子。」
+> 「遊戲設計，就像磚塊：每一次，都在重塑世界的樣子。」

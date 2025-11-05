@@ -1,7 +1,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Love2D-11.5-blue.svg?logo=love" alt="Love2D Version">
   <img src="https://img.shields.io/badge/License-MIT-green.svg" alt="License: MIT">
-  <img src="https://img.shields.io/badge/Platform-Windows%20%7C%20macOS-lightgrey.svg" alt="Platform">
+  <img src="https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg" alt="Platform">
   <img src="https://img.shields.io/github/stars/alvin999/BreakTetris?style=social" alt="GitHub stars">
   <img src="https://img.shields.io/github/last-commit/alvin999/BreakTetris?color=yellow" alt="Last Commit">
 </p>
@@ -60,6 +60,16 @@
   1.  解壓縮 `break_tetris-mac.zip`。
   2.  直接執行 `break_tetris` 應用程式。 (如果遇到安全性警告，請在「系統設定」>「隱私權與安全性」中允許執行)
 
+- **Linux (AppImage)**:
+  1.  下載檔案 `BreakTetris-x86_64.AppImage`。
+  2.  打開終端機，使用 `chmod` 指令賦予檔案執行權限：
+      ```bash
+      chmod +x BreakTetris-x86_64.AppImage
+      ```
+  3.  執行遊戲：
+      ```bash
+      ./BreakTetris-x86_64.AppImage
+      ```
 ---
 
 ## 🧠 遊戲玩法

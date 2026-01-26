@@ -607,23 +607,6 @@ function love.update(dt)
     end
 
     -- ===================================
-    -- 模式通用/板子移動 (TETRIS 和 BREAKOUT 模式都可能執行)
-    -- ===================================
-    if gameState.mode == "BREAKOUT" then
-        local GAME_AREA_WIDTH = GRID_WIDTH * TILE_SIZE
-        local paddle = gameState.paddle 
-        
-        -- 板子 X 軸移動邏輯
-        paddle.x = paddle.x + paddle.dy * dt
-        -- 邊界檢查
-        if paddle.x < 0 then
-            paddle.x = 0
-        elseif paddle.x + paddle.w > GAME_AREA_WIDTH then 
-            paddle.x = GAME_AREA_WIDTH - paddle.w
-        end
-    end
-
-    -- ===================================
     -- TETRIS 模式邏輯
     -- ===================================
     if gameState.mode == "TETRIS" then
@@ -681,6 +664,16 @@ function love.update(dt)
     elseif gameState.mode == "BREAKOUT" then
         local GAME_AREA_WIDTH = GRID_WIDTH * TILE_SIZE
         local paddle = gameState.paddle
+        
+        -- 板子 X 軸移動邏輯
+        paddle.x = paddle.x + paddle.dy * dt
+        -- 邊界檢查
+        if paddle.x < 0 then
+            paddle.x = 0
+        elseif paddle.x + paddle.w > GAME_AREA_WIDTH then 
+            paddle.x = GAME_AREA_WIDTH - paddle.w
+        end
+
         local hit_brick = false
 
         -- **新增：Y 座標由狀態控制**

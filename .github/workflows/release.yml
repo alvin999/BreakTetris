@@ -131,10 +131,15 @@ jobs:
           name: game-love
           path: dist/game-love
 
+      - name: Prepare release notes
+        run: |
+          sed "s/\${{ github.ref_name }}/${{ github.ref_name }}/g" docs/release_template.md > dist/release_notes.md
+
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
-          body_path: docs/release_template.md
+          name: "Break Tetris ${{ github.ref_name }}"
+          body_path: dist/release_notes.md
           files: |
             dist/build-windows/*.zip
             dist/build-linux/*.AppImage

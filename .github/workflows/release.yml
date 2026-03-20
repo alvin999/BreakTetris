@@ -14,21 +14,31 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
-      - name: Build for all platforms
-        uses: love-actions/love-actions@v1
+      - name: Build Windows
+        uses: love-actions/love-actions-windows@v1
         with:
           game_name: break-tetris
           version: 11.3
-          platforms: windows, macos, linux
+
+      - name: Build MacOS (Portable)
+        uses: love-actions/love-actions-macos-portable@v1
+        with:
+          game_name: break-tetris
+          version: 11.3
+
+      - name: Build Linux (AppImage)
+        uses: love-actions/love-actions-linux@v1
+        with:
+          game_name: break-tetris
+          version: 11.3
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
           files: |
             build/windows/*.zip
-            build/macos/*.zip
+            build/macos-portable/*.zip
             build/linux/*.AppImage
-            build/love/*.love
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

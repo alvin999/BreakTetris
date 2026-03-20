@@ -12,33 +12,43 @@ jobs:
       contents: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Build Windows
         uses: love-actions/love-actions-windows@v1
         with:
-          game_name: break-tetris
-          version: 11.3
-
-      - name: Build MacOS (Portable)
-        uses: love-actions/love-actions-macos-portable@v1
-        with:
-          game_name: break-tetris
-          version: 11.3
+          product-name: break-tetris
+          love-ref: 11.3
+          output-folder: build/windows
 
       - name: Build Linux (AppImage)
         uses: love-actions/love-actions-linux@v1
         with:
-          game_name: break-tetris
-          version: 11.3
+          product-name: break-tetris
+          love-ref: 11.3
+          output-folder: build/linux
+
+      - name: Build MacOS (Manual - Skip Notarization)
+        run: |
+          mkdir -p build/macos
+          wget -q https://github.com/love2d/love/releases/download/11.3/love-11.3-macos.zip
+          unzip -q love-11.3-macos.zip
+          # 打包 .love 資源
+          zip -9 -r break-tetris.love . -x ".git/*" ".github/*" "dist/*" "main_backup.lua" "build/*" ".gitignore" "*.md"
+          # 替換圖示與名稱 (簡單處理)
+          mv love.app break-tetris.app
+          cp break-tetris.love break-tetris.app/Contents/Resources/
+          zip -9 -y -r build/macos/break-tetris-macos.zip break-tetris.app
+          cp break-tetris.love build/break-tetris.love
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
           files: |
             build/windows/*.zip
-            build/macos-portable/*.zip
             build/linux/*.AppImage
+            build/macos/*.zip
+            build/break-tetris.love
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

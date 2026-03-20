@@ -56,21 +56,40 @@ jobs:
     needs: build-love
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
       - name: Download .love
         uses: actions/download-artifact@v4
         with:
           name: game-love
 
-      - name: Build Linux
-        uses: love-actions/love-actions-linux@v1
-        with:
-          love-package: ./game.love
-          product-name: break-tetris
-          love-ref: 11.3
-          output-folder: build/linux
+      - name: Build Linux AppImage (Manual)
+        run: |
+          # 安裝工具
+          sudo apt-get install -y libfuse2 || true
+
+          # 下載 LÖVE AppImage
+          wget -q https://github.com/love2d/love/releases/download/11.3/love-11.3-x86_64.AppImage
+          chmod +x love-11.3-x86_64.AppImage
+
+          # 解壓 AppImage 為 squashfs-root
+          ./love-11.3-x86_64.AppImage --appimage-extract
+
+          # 放入遊戲資源
+          cp game.love squashfs-root/
+
+          # 修改 AppRun 讓其啟動時自動載入 game.love
+          echo '#!/bin/sh' > squashfs-root/AppRun
+          echo 'SELF=$(readlink -f "$0")' >> squashfs-root/AppRun
+          echo 'HERE=${SELF%/*}' >> squashfs-root/AppRun
+          echo 'exec "$HERE/love" "$HERE/game.love" "$@"' >> squashfs-root/AppRun
+          chmod +x squashfs-root/AppRun
+
+          # 重新打包成新 AppImage
+          wget -q https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x appimagetool-x86_64.AppImage
+          ./appimagetool-x86_64.AppImage squashfs-root break-tetris-x86_64.AppImage
+
+          mkdir -p build/linux
+          mv break-tetris-x86_64.AppImage build/linux/
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

@@ -69,7 +69,7 @@ function Ball:update(dt, paddle, grid)
     local ballTileX = math.floor(newX / constants.TILE_SIZE) + 1
     local ballTileY = math.floor(newY / constants.TILE_SIZE) + 1
     
-    local hit_brick = false
+    local hit_brick = nil
     -- 檢查球周圍的網格
     for row = math.max(1, ballTileY - 1), math.min(constants.GRID_HEIGHT, ballTileY + 1) do
         for col = math.max(1, ballTileX - 1), math.min(constants.GRID_WIDTH, ballTileX + 1) do

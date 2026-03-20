@@ -1,0 +1,35 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: LÖVE Release
+        uses: marvinjwendt/love-release@v1.1.1
+        with:
+          name: break-tetris
+          directory: .
+          version: ${{ github.ref_name }}
+          platforms: win, macOS
+          # 這會自動生成 .love, .exe (win), .app (mac)
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            releases/*.zip
+            releases/*.love
+            releases/*.dmg
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

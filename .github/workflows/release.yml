@@ -6,49 +6,129 @@ on:
       - 'v*'
 
 jobs:
-  release:
+  # ─── Step 1: Package game.love ───────────────────────────────────────────────
+  build-love:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Package .love file
+        run: |
+          zip -9 -r game.love . \
+            -x ".git/*" ".github/*" "build/*" "main_backup.lua" ".gitignore" "*.md"
+
+      - name: Upload .love artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: game-love
+          path: game.love
+
+  # ─── Step 2: Windows ──────────────────────────────────────────────────────────
+  build-windows:
+    needs: build-love
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download .love
+        uses: actions/download-artifact@v4
+        with:
+          name: game-love
+
       - name: Build Windows
         uses: love-actions/love-actions-windows@v1
         with:
+          love-package: ./game.love
           product-name: break-tetris
           love-ref: 11.3
           output-folder: build/windows
 
-      - name: Build Linux (AppImage)
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-windows
+          path: build/windows/*.zip
+
+  # ─── Step 3: Linux AppImage ───────────────────────────────────────────────────
+  build-linux:
+    needs: build-love
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download .love
+        uses: actions/download-artifact@v4
+        with:
+          name: game-love
+
+      - name: Build Linux
         uses: love-actions/love-actions-linux@v1
         with:
+          love-package: ./game.love
           product-name: break-tetris
           love-ref: 11.3
           output-folder: build/linux
 
-      - name: Build MacOS (Manual - Skip Notarization)
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-linux
+          path: build/linux/*.AppImage
+
+  # ─── Step 4: macOS (Manual, no signing) ──────────────────────────────────────
+  build-macos:
+    needs: build-love
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download .love
+        uses: actions/download-artifact@v4
+        with:
+          name: game-love
+
+      - name: Build macOS
         run: |
-          mkdir -p build/macos
           wget -q https://github.com/love2d/love/releases/download/11.3/love-11.3-macos.zip
           unzip -q love-11.3-macos.zip
-          # 打包 .love 資源
-          zip -9 -r break-tetris.love . -x ".git/*" ".github/*" "dist/*" "main_backup.lua" "build/*" ".gitignore" "*.md"
-          # 替換圖示與名稱 (簡單處理)
+          cp game.love love.app/Contents/Resources/
           mv love.app break-tetris.app
-          cp break-tetris.love break-tetris.app/Contents/Resources/
+          mkdir -p build/macos
           zip -9 -y -r build/macos/break-tetris-macos.zip break-tetris.app
-          cp break-tetris.love build/break-tetris.love
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-macos
+          path: build/macos/*.zip
+
+  # ─── Step 5: Create GitHub Release ───────────────────────────────────────────
+  release:
+    needs: [build-windows, build-linux, build-macos]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+
+      - name: Download .love for release
+        uses: actions/download-artifact@v4
+        with:
+          name: game-love
+          path: dist/game-love
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            build/windows/*.zip
-            build/linux/*.AppImage
-            build/macos/*.zip
-            build/break-tetris.love
+            dist/build-windows/*.zip
+            dist/build-linux/*.AppImage
+            dist/build-macos/*.zip
+            dist/game-love/game.love
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

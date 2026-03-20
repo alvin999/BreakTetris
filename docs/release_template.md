@@ -1,4 +1,4 @@
-# Break Tetris v${{ github.ref_name }} - The Hybrid Challenge Continues!
+# Break Tetris {{VERSION}} - The Hybrid Challenge Continues!
 
 ## 🚀 How to Play
 Download the correct file for your operating system from the Assets section below. Follow the instructions for your system.

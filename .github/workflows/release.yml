@@ -132,8 +132,10 @@ jobs:
           path: dist/game-love
 
       - name: Prepare release notes
+        env:
+          REF_NAME: ${{ github.ref_name }}
         run: |
-          sed "s/\${{ github.ref_name }}/${{ github.ref_name }}/g" docs/release_template.md > dist/release_notes.md
+          sed "s/{{VERSION}}/${REF_NAME}/g" docs/release_template.md > dist/release_notes.md
 
       - name: Create Release
         uses: softprops/action-gh-release@v1

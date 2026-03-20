@@ -56,6 +56,9 @@ jobs:
     needs: build-love
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Download .love
         uses: actions/download-artifact@v4
         with:
@@ -68,7 +71,8 @@ jobs:
           app-name: break-tetris
           bundle-id: com.alvin.breaktetris
           description: TetrisxBreakout Hybrid
-          version-string: "1.1.5"
+          version-string: "1.1.9"
+          icon-path: ./.github/build/linux/icon.png
           love-ref: "11.5"
           love-package: ./game.love
           build-deb: false

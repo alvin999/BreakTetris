@@ -27,10 +27,10 @@ Download the correct file for your operating system from the Assets section belo
 ## 🎮 Controls
 | Key | Action |
 | :--- | :--- |
-| **Arrow Keys / H, L** | Move Piece / Paddle |
+| **Arrow Keys / H, L / A, D** | Move Piece / Paddle |
 | **Up Arrow / K** | Rotate (Tetris) |
 | **Down Arrow / J** | Soft Drop (Tetris) |
-| **Space** | Hard Drop (Tetris) / Slam (Breakout) |
+| **Space** | Hard Drop (Tetris) / Slam (Breakout) / Fire Laser |
 | **F** | Toggle Fullscreen |
 | **P** | Pause Game |
 | **M** | Mute/Unmute Sound |

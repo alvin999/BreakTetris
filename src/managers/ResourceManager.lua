@@ -24,7 +24,11 @@ function ResourceManager.load()
         end
     end
     
-    -- 載入預設字體
+    -- 載入預設字體與遊戲物件微型字體
+    ResourceManager.itemFont = love.graphics.newFont(9, "none")
+    if ResourceManager.itemFont then
+        ResourceManager.itemFont:setFilter("nearest", "nearest")
+    end
     ResourceManager.updateFont(1) -- 預設縮放為 1
 end
 

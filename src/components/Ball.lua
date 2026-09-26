@@ -8,6 +8,7 @@ function Ball.new(x, y, dx, dy)
     local self = setmetatable({}, Ball)
     self.r = 5
     self.isPenetrating = false
+    self.isChargedBomb = false -- 洛克人 3x3 蓄力爆破狀態
     
     if x and y and dx and dy then
         self.x = x
@@ -26,6 +27,7 @@ function Ball:reset()
     self.dx = (math.random() > 0.5 and 1 or -1) * 150
     self.dy = -150
     self.isPenetrating = false
+    self.isChargedBomb = false
 end
 
 function Ball:update(dt, paddle, grid, hasSafetyFloor)
@@ -77,14 +79,22 @@ function Ball:update(dt, paddle, grid, hasSafetyFloor)
             hitOffset = math.max(-0.9, math.min(0.9, hitOffset))
             
             local currentSpeed = math.sqrt(self.dx * self.dx + self.dy * self.dy)
-            if paddle.slam_window_timer > 0 then
-                currentSpeed = currentSpeed * 1.4
+            -- 只有在放開瞬間 (擊打窗口 slam_window_timer > 0) 才讓球加速，加速幅度溫和調至 1.15 倍 (+15%)
+            local isSlammed = (paddle.slam_window_timer > 0)
+            if isSlammed then
+                currentSpeed = currentSpeed * 1.15
                 paddle.slam_window_timer = 0
             end
             
-            local bounceAngle = hitOffset * (math.pi / 3) -- 最大 60 度傾角
+            -- 最大角度調為 52 度 (約 0.9 rad)，防止過度扁平造成垂直推進力失速
+            local maxAngle = math.rad(52)
+            local bounceAngle = hitOffset * maxAngle
             self.dx = currentSpeed * math.sin(bounceAngle)
-            self.dy = -currentSpeed * math.cos(bounceAngle)
+            
+            -- 垂直向上速度保底機制：保證反彈速度絕對不低於下落垂直速度 (擊打時溫和保底 1.10 倍)
+            local minDy = math.abs(self.dy) * (isSlammed and 1.10 or 1.0)
+            local calculatedDy = currentSpeed * math.cos(bounceAngle)
+            self.dy = -math.max(minDy, calculatedDy)
             
             utils.limitBallSpeed(self, constants.BALL_MAX_SPEED)
             newY = self.y
@@ -107,11 +117,12 @@ function Ball:update(dt, paddle, grid, hasSafetyFloor)
                    newY + self.r > tileY and newY - self.r < tileY + constants.TILE_SIZE then
                    
                     local cellType = grid.data[row][col]
-                    -- 銷毀磚塊
-                    grid.data[row][col] = 0
                     
-                    -- 若非穿透狀態則反彈
-                    if not self.isPenetrating then
+                    -- 若為蓄力爆破球 (3x3 引爆)
+                    if self.isChargedBomb then
+                        self.isChargedBomb = false
+                        
+                        -- 物理反彈
                         local centerTileX = tileX + constants.TILE_SIZE / 2
                         local centerTileY = tileY + constants.TILE_SIZE / 2
                         local dx_from_center = newX - centerTileX
@@ -125,17 +136,55 @@ function Ball:update(dt, paddle, grid, hasSafetyFloor)
                             newY = oldY + self.dy * dt
                         end
                         utils.limitBallSpeed(self, constants.BALL_MAX_SPEED)
+                        
+                        hit_result = {
+                            event = "CHARGED_EXPLODE",
+                            row = row,
+                            col = col,
+                            tileType = cellType,
+                            x = tileX + constants.TILE_SIZE / 2,
+                            y = tileY + constants.TILE_SIZE / 2
+                        }
+                        break
+                    elseif self.isPenetrating then
+                        -- 穿透道具：直接銷毀單格磚塊不反彈
+                        grid.data[row][col] = 0
+                        hit_result = {
+                            event = "BRICK_HIT",
+                            row = row,
+                            col = col,
+                            tileType = cellType,
+                            x = tileX + constants.TILE_SIZE / 2,
+                            y = tileY + constants.TILE_SIZE / 2
+                        }
+                        break
+                    else
+                        -- 一般球：銷毀單格並反彈
+                        grid.data[row][col] = 0
+                        local centerTileX = tileX + constants.TILE_SIZE / 2
+                        local centerTileY = tileY + constants.TILE_SIZE / 2
+                        local dx_from_center = newX - centerTileX
+                        local dy_from_center = newY - centerTileY
+                        
+                        if math.abs(dx_from_center) > math.abs(dy_from_center) then
+                            self.dx = -self.dx
+                            newX = oldX + self.dx * dt
+                        else
+                            self.dy = -self.dy
+                            newY = oldY + self.dy * dt
+                        end
+                        utils.limitBallSpeed(self, constants.BALL_MAX_SPEED)
+                        
+                        hit_result = {
+                            event = "BRICK_HIT",
+                            row = row,
+                            col = col,
+                            tileType = cellType,
+                            x = tileX + constants.TILE_SIZE / 2,
+                            y = tileY + constants.TILE_SIZE / 2
+                        }
+                        break
                     end
-                    
-                    hit_result = {
-                        event = "BRICK_HIT",
-                        row = row,
-                        col = col,
-                        tileType = cellType,
-                        x = tileX + constants.TILE_SIZE / 2,
-                        y = tileY + constants.TILE_SIZE / 2
-                    }
-                    break
                 end
             end
         end
@@ -151,15 +200,31 @@ function Ball:draw(gridOffsetY)
     local oy = gridOffsetY or 0
     local drawY = self.y + oy
     
-    -- 穿透狀態光環
-    if self.isPenetrating then
-        love.graphics.setColor(constants.POWERUP_TYPES.PIERCE.color)
-        love.graphics.circle("line", self.x, drawY, self.r + 3)
+    -- 洛克人蓄力爆破狀態：球發光 (莫蘭迪琥珀金/暖杏橘高能脈動外環)
+    if self.isChargedBomb then
+        local t = love.timer.getTime() * 12
+        local pulse = 2.5 + math.sin(t) * 1.5
+        
+        -- 外層發光柔和光暈 (暖橘金)
+        love.graphics.setColor(235/255, 178/255, 130/255, 0.5)
+        love.graphics.circle("fill", self.x, drawY, self.r + pulse + 2)
+        -- 能量光環輪廓
+        love.graphics.setColor(255/255, 215/255, 150/255, 0.9)
+        love.graphics.circle("line", self.x, drawY, self.r + pulse)
+        -- 核心高光球體
+        love.graphics.setColor(255/255, 245/255, 220/255, 1)
+        love.graphics.circle("fill", self.x, drawY, self.r)
+    else
+        -- 道具穿透狀態光環
+        if self.isPenetrating then
+            love.graphics.setColor(constants.POWERUP_TYPES.PIERCE.color)
+            love.graphics.circle("line", self.x, drawY, self.r + 3)
+        end
+        
+        -- 一般球體本體
+        love.graphics.setColor(constants.MORANDI_COLORS.ball)
+        love.graphics.circle("fill", self.x, drawY, self.r)
     end
-    
-    -- 球體本體
-    love.graphics.setColor(constants.MORANDI_COLORS.ball)
-    love.graphics.circle("fill", self.x, drawY, self.r)
 end
 
 return Ball

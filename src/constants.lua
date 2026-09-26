@@ -11,7 +11,7 @@ constants.GAME_HEIGHT = constants.GRID_HEIGHT * constants.TILE_SIZE
 
 -- 物理參數
 constants.SLAM_OFFSET = 5
-constants.SLAM_WINDOW_DURATION = 0.2
+constants.SLAM_WINDOW_DURATION = 0.25
 constants.BALL_MAX_SPEED = 1000
 
 -- 莫蘭迪色系
@@ -46,13 +46,16 @@ constants.MOVE_INTERVAL = 0.05
 constants.ANIMATION_DURATION = 0.5
 
 -- 道具系統參數
-constants.POWERUP_DROP_CHANCE = 0.30 -- 30% 掉落機率，讓遊戲節奏更豐富暢快
+constants.POWERUP_DROP_CHANCE = 0.10 -- 10% 掉落機率，回歸經典打磚塊節奏
 constants.POWERUP_FALL_SPEED = 85    -- 道具緩降速度
 constants.POWERUP_WIDTH = 22         -- 道具膠囊寬度
 constants.POWERUP_HEIGHT = 14        -- 道具膠囊高度 (提升容納文字空間)
 constants.PADDLE_BASE_WIDTH = 80     -- 板子基礎寬度
 constants.PADDLE_EXPAND_STEP = 30    -- 每次加長累加 30px
 constants.PADDLE_MAX_WIDTH = constants.GRID_WIDTH * constants.TILE_SIZE -- 滿版寬度 (200px)
+
+-- 洛克人蓄力集氣系統參數 (按住空白鍵)
+constants.MAX_CHARGE_TIME = 0.9              -- 蓄力滿格所需時間 (0.9 秒)
 
 -- 道具種類定義與莫蘭迪專屬色彩
 constants.POWERUP_TYPES = {
@@ -87,14 +90,6 @@ constants.POWERUP_TYPES = {
         label = "安全護網",
         duration = 0,
         color = {136/255, 186/255, 218/255, 1} -- 莫蘭迪天青藍
-    },
-    COLOR_BOMB = {
-        id = "COLOR_BOMB",
-        code = "C",
-        name = "Color Bomb",
-        label = "同色爆破",
-        duration = 10,
-        color = {192/255, 152/255, 202/255, 1} -- 莫蘭迪丁香紫
     },
     LASER = {
         id = "LASER",

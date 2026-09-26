@@ -27,10 +27,16 @@ function PlayingState.new()
     self.activeEffects = {
         LONG = 0,
         PIERCE = 0,
-        COLOR_BOMB = 0,
         LASER = 0
     }
     self.hasSafetyFloor = false
+    self.explosions = {} -- 3x3 蓄力爆破特效陣列
+    
+    -- 洛克人蓄力集氣系統 (按住空白鍵)
+    self.chargeTime = 0
+    self.isCharging = false
+    self.chargeSoundPlayed = false
+    self.chargeReleaseTimer = 0
     
     self.currentPiece = nil
     self.nextPieceType = nil
@@ -85,10 +91,17 @@ function PlayingState:clearBreakoutItems()
         self.activeEffects[k] = 0
     end
     self.hasSafetyFloor = false
+    self.explosions = {}
+    self.chargeTime = 0
+    self.isCharging = false
+    self.chargeSoundPlayed = false
+    self.chargeReleaseTimer = 0
+    self.paddle.chargeRatio = 0
     self.paddle:shrinkToBase()
     self.paddle.hasLaser = false
     for _, b in ipairs(self.balls) do
         b.isPenetrating = false
+        b.isChargedBomb = false
     end
 end
 
@@ -194,7 +207,7 @@ end
 
 function PlayingState:trySpawnPowerUp(x, y)
     if math.random() <= constants.POWERUP_DROP_CHANCE then
-        local pool = {"LONG", "MULTI", "PIERCE", "SAFETY", "COLOR_BOMB", "LASER"}
+        local pool = {"LONG", "MULTI", "PIERCE", "SAFETY", "LASER"}
         local selected = pool[math.random(#pool)]
         table.insert(self.powerUps, PowerUp.new(x, y, selected))
     end
@@ -235,45 +248,16 @@ function PlayingState:applyPowerUp(typeKey)
         self.activeEffects.PIERCE = info.duration
     elseif typeKey == "SAFETY" then
         self.hasSafetyFloor = true
-    elseif typeKey == "COLOR_BOMB" then
-        self.activeEffects.COLOR_BOMB = info.duration
     elseif typeKey == "LASER" then
         self.activeEffects.LASER = info.duration
         self.paddle.hasLaser = true
     end
 end
 
--- 同色連鎖爆破邏輯 (BFS 擴散)
-function PlayingState:triggerColorBomb(startRow, startCol, targetType)
-    if not targetType or targetType == 0 then return end
-    
-    local queue = { {r = startRow, c = startCol} }
-    local directions = { {1,0}, {-1,0}, {0,1}, {0,-1} }
-    
-    while #queue > 0 do
-        local curr = table.remove(queue, 1)
-        for _, dir in ipairs(directions) do
-            local nr = curr.r + dir[1]
-            local nc = curr.c + dir[2]
-            if nr >= 1 and nr <= self.grid.height and nc >= 1 and nc <= self.grid.width then
-                if self.grid.data[nr][nc] == targetType then
-                    self.grid.data[nr][nc] = 0
-                    self.score = self.score + 50
-                    table.insert(queue, {r = nr, c = nc})
-                    -- 連鎖引爆小機率產生掉落物
-                    if math.random() < 0.2 then
-                        self:trySpawnPowerUp((nc - 0.5) * constants.TILE_SIZE, (nr - 0.5) * constants.TILE_SIZE)
-                    end
-                end
-            end
-        end
-    end
-end
-
--- 發射雷射光束
+-- 發射雷射光束 (裝備雷射道具時)
 function PlayingState:fireLaser()
     if self.activeEffects.LASER > 0 and self.laserCooldown <= 0 then
-        self.laserCooldown = 0.25
+        self.laserCooldown = 0.20
         ResourceManager.playSound("blip")
         local leftGunX = self.paddle.x + 5
         local rightGunX = self.paddle.x + self.paddle.w - 5
@@ -290,6 +274,48 @@ function PlayingState:updateBreakout(dt)
     if self.laserCooldown > 0 then
         self.laserCooldown = self.laserCooldown - dt
     end
+    
+    -- 洛克人模式：按住空白鍵蓄力 (Hold Space to Charge)
+    local maxCharge = constants.MAX_CHARGE_TIME or 0.9
+    local isSpaceDown = love.keyboard.isDown("space")
+    if isSpaceDown then
+        self.isCharging = true
+        self.chargeTime = self.chargeTime + dt
+        self.chargeReleaseTimer = 0
+        if self.chargeTime >= maxCharge then
+            if not self.chargeSoundPlayed then
+                ResourceManager.playSound("start") -- 滿氣提示聲改為開始遊戲的叮咚聲 (start)
+                self.chargeSoundPlayed = true
+            end
+        end
+    else
+        if self.isCharging then
+            -- 放開空白鍵：若已蓄滿，啟動放開揮拍擊打窗口 (與 slam_window_timer 同步)
+            if self.chargeTime >= maxCharge then
+                self.chargeReleaseTimer = constants.SLAM_WINDOW_DURATION or 0.25
+            end
+            self.isCharging = false
+            self.chargeTime = 0
+            self.chargeSoundPlayed = false
+        end
+        
+        -- 更新放開後板子蓄力保持倒數
+        if self.chargeReleaseTimer > 0 then
+            self.chargeReleaseTimer = self.chargeReleaseTimer - dt
+            if self.chargeReleaseTimer <= 0 then
+                self.chargeReleaseTimer = 0
+            end
+        end
+    end
+    
+    -- 同步板子跑馬燈進度 (蓄力中或蓄滿揮拍窗口中維持發光)
+    local displayRatio = 0
+    if self.isCharging then
+        displayRatio = self.chargeTime / maxCharge
+    elseif self.chargeReleaseTimer > 0 then
+        displayRatio = 1.0
+    end
+    self.paddle.chargeRatio = displayRatio
     
     -- 1. 更新持續性道具 Buff
     for effectKey, timer in pairs(self.activeEffects) do
@@ -319,10 +345,7 @@ function PlayingState:updateBreakout(dt)
             table.remove(self.lasers, i)
             self.score = self.score + 50
             ResourceManager.playSound("blip")
-            self:trySpawnPowerUp(hit.x, hit.y)
-            if self.activeEffects.COLOR_BOMB > 0 then
-                self:triggerColorBomb(hit.row, hit.col, hit.tileType)
-            end
+            -- 雷射不掉落道具，防止滾雪球
         end
     end
     
@@ -351,13 +374,43 @@ function PlayingState:updateBreakout(dt)
             ResourceManager.playSound("lock")
         elseif res.event == "PADDLE_HIT" then
             ResourceManager.playSound("blip")
+            -- 只有在放開瞬間揮拍擊中球時，才將板子上的蓄力能量貫注到球中！按住接球不加速也不引爆
+            if self.chargeReleaseTimer > 0 then
+                ball.isChargedBomb = true
+                ResourceManager.playSound("lock") -- 蓄力殺球擊發破空音效！
+                self.chargeTime = 0
+                self.chargeReleaseTimer = 0
+                self.chargeSoundPlayed = false
+                self.paddle.chargeRatio = 0
+            end
+        elseif res.event == "CHARGED_EXPLODE" then
+            ResourceManager.playSound("clear") -- 3x3 引爆清爽消除音效！
+            -- 3x3 九宮格磚塊範圍爆破
+            local destroyedCount = 0
+            for r = math.max(1, res.row - 1), math.min(self.grid.height, res.row + 1) do
+                for c = math.max(1, res.col - 1), math.min(self.grid.width, res.col + 1) do
+                    if self.grid.data[r][c] ~= 0 then
+                        self.grid.data[r][c] = 0
+                        destroyedCount = destroyedCount + 1
+                    end
+                end
+            end
+            self.score = self.score + destroyedCount * 50
+            -- 產生 3x3 莫蘭迪暖杏橘爆破擴散光環
+            table.insert(self.explosions, {
+                x = res.x,
+                y = res.y,
+                radius = 12,
+                maxRadius = constants.TILE_SIZE * 2.5,
+                timer = 0,
+                duration = 0.35,
+                color = {240/255, 175/255, 115/255}
+            })
+            self:trySpawnPowerUp(res.x, res.y)
         elseif res.event == "BRICK_HIT" then
             ResourceManager.playSound("blip")
             self.score = self.score + 50
             self:trySpawnPowerUp(res.x, res.y)
-            if self.activeEffects.COLOR_BOMB > 0 then
-                self:triggerColorBomb(res.row, res.col, res.tileType)
-            end
         elseif res.event == "DROP" then
             table.remove(self.balls, i)
             if #self.balls == 0 then
@@ -371,7 +424,16 @@ function PlayingState:updateBreakout(dt)
     -- 同步引用保持相容
     self.ball = self.balls[1]
     
-    -- 5. 檢查磚塊是否全清，若是則回切 Tetris
+    -- 5. 更新爆破動畫特效
+    for i = #self.explosions, 1, -1 do
+        local exp = self.explosions[i]
+        exp.timer = exp.timer + dt
+        if exp.timer >= exp.duration then
+            table.remove(self.explosions, i)
+        end
+    end
+    
+    -- 6. 檢查磚塊是否全清，若是則回切 Tetris
     local remaining = 0
     for r = 1, self.grid.height do
         for c = 1, self.grid.width do
@@ -398,16 +460,10 @@ function PlayingState:switchToBreakout()
         end
     end
     
-    -- 若俄羅斯方塊場上無方塊，自動生成 2 排隨機莫蘭迪方塊供玩家遊玩打磚塊
+    -- 若場上完全沒有方塊，無法切換至打磚塊模式 (必須先在俄羅斯方塊中落下方塊)
     if maxY == 0 then
-        local types = {"I", "O", "T", "L", "J", "S", "Z"}
-        for r = 1, 2 do
-            for c = 1, self.grid.width do
-                self.grid.data[r][c] = types[math.random(#types)]
-            end
-        end
-        minY = 1
-        maxY = 2
+        ResourceManager.playSound("blip")
+        return
     end
     
     local rowsToKeep = {}
@@ -519,6 +575,8 @@ function PlayingState:draw()
             love.graphics.setLineWidth(1)
         end
         
+
+        
         -- 繪製雷射光束
         for _, l in ipairs(self.lasers) do
             l:draw(gridOffsetY)
@@ -529,6 +587,19 @@ function PlayingState:draw()
         for _, b in ipairs(self.balls) do
             b:draw(gridOffsetY)
         end
+        
+        -- 繪製 3x3 蓄力引爆衝擊圈
+        for _, exp in ipairs(self.explosions) do
+            local progress = exp.timer / exp.duration
+            local radius = exp.radius + (exp.maxRadius - exp.radius) * progress
+            local alpha = (1 - progress) * 0.85
+            love.graphics.setColor(exp.color[1], exp.color[2], exp.color[3], alpha)
+            love.graphics.setLineWidth(3 * (1 - progress * 0.5))
+            love.graphics.circle("line", exp.x, exp.y + gridOffsetY, radius)
+            love.graphics.setColor(exp.color[1], exp.color[2], exp.color[3], alpha * 0.25)
+            love.graphics.circle("fill", exp.x, exp.y + gridOffsetY, radius * 0.7)
+        end
+        love.graphics.setLineWidth(1)
         
         -- 繪製下落中的道具膠囊
         for _, p in ipairs(self.powerUps) do
@@ -604,7 +675,65 @@ function PlayingState:drawUI(scale)
     else
         -- 打磚塊模式專屬資訊區
         love.graphics.print("BALLS: " .. #self.balls, uiX, y)
-        y = y + lineHeight * 1.5
+        y = y + lineHeight * 1.3
+        
+        -- 洛克人蓄力 HUD (單行固定排版，避免按鍵時上下推擠換行產生閃爍)
+        local contentW = (constants.INFO_WIDTH - 20) * scale
+        local barW = 46 * scale
+        local barH = 6 * scale
+        local barX = uiX + contentW - barW
+        local barY = y + math.floor((lineHeight - barH) / 2)
+        local maxCharge = constants.MAX_CHARGE_TIME or 0.9
+        local cRatio = math.min(1, self.chargeTime / maxCharge)
+        
+        -- 檢查場上是否有發光蓄力爆破球
+        local hasChargedBall = false
+        for _, b in ipairs(self.balls) do
+            if b.isChargedBomb then
+                hasChargedBall = true
+                break
+            end
+        end
+        
+        local isChargedPaddle = (self.isCharging and cRatio >= 1.0) or (self.chargeReleaseTimer > 0)
+        
+        if isChargedPaddle then
+            local flash = 0.7 + 0.3 * math.sin(love.timer.getTime() * 12)
+            love.graphics.setColor(100/255, 220/255, 255/255, flash)
+            love.graphics.print("READY!", uiX, y)
+            
+            love.graphics.setColor(0.2, 0.25, 0.3, 1)
+            love.graphics.rectangle("fill", barX, barY, barW, barH, 2, 2)
+            love.graphics.setColor(100/255, 220/255, 255/255, flash)
+            love.graphics.rectangle("fill", barX, barY, barW, barH, 2, 2)
+        elseif self.isCharging then
+            love.graphics.setColor(136/255, 186/255, 218/255, 1)
+            love.graphics.print(string.format("CHG %d%%", math.floor(cRatio * 100)), uiX, y)
+            
+            love.graphics.setColor(0.2, 0.25, 0.3, 1)
+            love.graphics.rectangle("fill", barX, barY, barW, barH, 2, 2)
+            love.graphics.setColor(136/255, 186/255, 218/255, 0.9)
+            love.graphics.rectangle("fill", barX, barY, barW * cRatio, barH, 2, 2)
+        elseif hasChargedBall then
+            love.graphics.setColor(245/255, 185/255, 125/255, 1)
+            love.graphics.print("3x3 BOMB", uiX, y)
+            
+            love.graphics.setColor(0.2, 0.25, 0.3, 1)
+            love.graphics.rectangle("fill", barX, barY, barW, barH, 2, 2)
+            love.graphics.setColor(245/255, 185/255, 125/255, 0.9)
+            love.graphics.rectangle("fill", barX, barY, barW, barH, 2, 2)
+        else
+            love.graphics.setColor(0.65, 0.65, 0.65, 1)
+            love.graphics.print("CHARGE", uiX, y)
+            
+            love.graphics.setColor(0.2, 0.22, 0.25, 1)
+            love.graphics.rectangle("fill", barX, barY, barW, barH, 2, 2)
+            love.graphics.setColor(0.4, 0.45, 0.5, 0.5)
+            love.graphics.rectangle("line", barX, barY, barW, barH, 2, 2)
+        end
+        
+        -- 單行固定高度，無論何時 Y 座標永遠固定
+        y = y + lineHeight * 1.2
         
         love.graphics.setColor(0.9, 0.9, 0.9, 1)
         love.graphics.print("ACTIVE ITEMS:", uiX, y)
@@ -620,8 +749,9 @@ function PlayingState:drawUI(scale)
             y = y + lineHeight
         end
         
-        -- 持續性道具倒數顯示
-        local effectList = {"LONG", "PIERCE", "COLOR_BOMB", "LASER"}
+        -- 持續性道具倒數顯示 (移除 COLOR_BOMB)
+        local effectList = {"LONG", "PIERCE", "LASER"}
+        local itemBarW = 100 * scale
         for _, effKey in ipairs(effectList) do
             local remTime = self.activeEffects[effKey]
             if remTime > 0 then
@@ -645,14 +775,12 @@ function PlayingState:drawUI(scale)
                 y = y + lineHeight * 0.9
                 
                 -- 進度條
-                local barW = 100 * scale
-                local barH = 3 * scale
                 local maxDuration = (effKey == "LONG" and 30) or info.duration
                 local pct = math.min(1, remTime / maxDuration)
                 love.graphics.setColor(0.3, 0.3, 0.3, 1)
-                love.graphics.rectangle("fill", uiX, y, barW, barH)
+                love.graphics.rectangle("fill", uiX, y, itemBarW, 3 * scale)
                 love.graphics.setColor(info.color)
-                love.graphics.rectangle("fill", uiX, y, barW * pct, barH)
+                love.graphics.rectangle("fill", uiX, y, itemBarW * pct, 3 * scale)
                 y = y + lineHeight * 0.6
             end
         end
@@ -694,11 +822,13 @@ function PlayingState:drawUI(scale)
         y = y + lineHeight
         if self.activeEffects.LASER > 0 then
             love.graphics.setColor(constants.POWERUP_TYPES.LASER.color)
-            love.graphics.print("Fire & Slam: SPACE", uiX, y)
+            love.graphics.print("Fire Gun: SPACE", uiX, y)
             love.graphics.setColor(1, 1, 1, 1)
-        else
-            love.graphics.print("Slam: SPACE", uiX, y)
+            y = y + lineHeight
         end
+        love.graphics.print("Charge: Hold SPACE", uiX, y)
+        y = y + lineHeight
+        love.graphics.print("Release: 3x3 Blast", uiX, y)
     end
 end
 

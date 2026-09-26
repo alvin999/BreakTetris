@@ -71,7 +71,7 @@ jobs:
           app-name: break-tetris
           bundle-id: com.alvin.breaktetris
           description: TetrisxBreakout Hybrid
-          version-string: "1.2.0"
+          version-string: "1.3.0"
           icon-path: ./.github/build/linux/icon.png
           love-ref: "11.5"
           love-package: ./game.love

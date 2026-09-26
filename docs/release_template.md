@@ -30,7 +30,7 @@ Download the correct file for your operating system from the Assets section belo
 | **Arrow Keys / H, L / A, D** | Move Piece / Paddle |
 | **Up Arrow / K** | Rotate (Tetris) |
 | **Down Arrow / J** | Soft Drop (Tetris) |
-| **Space** | Hard Drop (Tetris) / Slam (Breakout) / Fire Laser |
+| **Space** | Hard Drop (Tetris) / Hold to Charge (3x3 Bomb) / Slam / Fire Laser |
 | **F** | Toggle Fullscreen |
 | **P** | Pause Game |
 | **M** | Mute/Unmute Sound |
